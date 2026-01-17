@@ -1,0 +1,46 @@
+version: '3.8'
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: catan-postgres-dev
+    environment:
+      POSTGRES_USER: catan
+      POSTGRES_PASSWORD: catan123
+      POSTGRES_DB: catan_db
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U catan"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  backend:
+    build:
+      context: .
+      dockerfile: backend/Dockerfile
+    container_name: catan-backend-dev
+    environment:
+      NODE_ENV: development
+      PORT: 3000
+      DATABASE_URL: postgresql://catan:catan123@postgres:5432/catan_db
+      JWT_SECRET: dev-jwt-secret-key
+      FRONTEND_URL: http://localhost:5173
+    ports:
+      - "3000:3000"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    volumes:
+      - ./backend:/app/backend
+      - ./shared:/app/shared
+      - /app/backend/node_modules
+      - /app/shared/node_modules
+    command: sh -c "npx prisma db push && npm install && npm run dev"
+
+volumes:
+  postgres_data:
+

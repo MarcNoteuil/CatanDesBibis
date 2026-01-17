@@ -1,0 +1,80 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id        String   @id @default(uuid())
+  email     String   @unique
+  password  String
+  username  String   @unique
+  points    Int      @default(0)
+  gamesWon  Int      @default(0)
+  gamesLost Int      @default(0)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  gamePlayers GamePlayer[]
+  wonGames    Game[]       @relation("GameWinner")
+}
+
+model Game {
+  id                 String    @id @default(uuid())
+  status             String    @default("waiting") // waiting, playing, finished
+  phase              String    @default("setup") // setup, playing, finished
+  turnNumber         Int       @default(0)
+  currentPlayerIndex Int       @default(0)
+  winnerId           String?
+  createdAt          DateTime  @default(now())
+  updatedAt          DateTime  @updatedAt
+  finishedAt         DateTime?
+
+  players   GamePlayer[]
+  gameState GameState?
+  winner    User?        @relation("GameWinner", fields: [winnerId], references: [id])
+}
+
+model GamePlayer {
+  id                     String  @id @default(uuid())
+  gameId                 String
+  userId                 String?
+  playerIndex            Int
+  color                  String
+  victoryPoints          Int     @default(0)
+  resources              Json // { wood: 0, brick: 0, sheep: 0, wheat: 0, ore: 0 }
+  buildings              Json // { settlements: 0, cities: 0, roads: 0 }
+  developmentCards       Json    @default("[]")
+  playedDevelopmentCards Json    @default("[]")
+  longestRoad            Boolean @default(false)
+  largestArmy            Boolean @default(false)
+  finalRank              Int? // Classement final (1 = premier, etc.)
+  pointsEarned           Int     @default(0) // Points gagnés pour ce classement
+  isBot                  Boolean @default(false)
+  botLevel               String? // amateur, intermediate, difficult
+  botName                String? // Nom du bot
+
+  game Game  @relation(fields: [gameId], references: [id], onDelete: Cascade)
+  user User? @relation(fields: [userId], references: [id])
+
+  @@index([gameId])
+  @@index([userId])
+}
+
+model GameState {
+  id        String   @id @default(uuid())
+  gameId    String   @unique
+  boardData Json // { tiles: [], intersections: [], roads: [] }
+  diceRoll  Json? // { value: number, playerId: string }
+  bank      Json // { wood: 19, brick: 19, ... }
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  game Game @relation(fields: [gameId], references: [id], onDelete: Cascade)
+}
